@@ -367,11 +367,12 @@ start_rabbitmq_node(Master, Config, NodeConfig, I) ->
     NodeConfig1 = init_tcp_port_numbers(Config, NodeConfig, I),
     NodeConfig2 = init_nodename(Config, NodeConfig1, I),
     NodeConfig3 = init_config_filename(Config, NodeConfig2, I),
+    NodeConfig4 = init_ra_config(Config, NodeConfig3, I),
     Steps = [
       fun write_config_file/3,
       fun do_start_rabbitmq_node/3
     ],
-    case run_node_steps(Config, NodeConfig3, I, Steps) of
+    case run_node_steps(Config, NodeConfig4, I, Steps) of
         {skip, _} = Error
         when Attempts >= ?NODE_START_ATTEMPTS ->
             %% It's unlikely we'll ever succeed to start RabbitMQ.
@@ -379,12 +380,12 @@ start_rabbitmq_node(Master, Config, NodeConfig, I) ->
             unlink(Master);
         {skip, _} ->
             %% Try again with another TCP port numbers base.
-            NodeConfig4 = move_nonworking_nodedir_away(NodeConfig3),
-            NodeConfig5 = rabbit_ct_helpers:set_config(NodeConfig4,
+            NodeConfig5 = move_nonworking_nodedir_away(NodeConfig4),
+            NodeConfig6 = rabbit_ct_helpers:set_config(NodeConfig5,
               {failed_boot_attempts, Attempts + 1}),
-            start_rabbitmq_node(Master, Config, NodeConfig5, I);
-        NodeConfig4 ->
-            Master ! {self(), I, NodeConfig4},
+            start_rabbitmq_node(Master, Config, NodeConfig6, I);
+        NodeConfig5 ->
+            Master ! {self(), I, NodeConfig5},
             unlink(Master)
     end.
 
@@ -525,6 +526,13 @@ init_config_filename(Config, NodeConfig, _I) ->
     ConfigFile = filename:join(ConfigDir, Nodename),
     rabbit_ct_helpers:set_config(NodeConfig,
       {erlang_node_config_filename, ConfigFile}).
+
+init_ra_config(Config, NodeConfig, _I) ->
+    PrivDir = ?config(priv_dir, Config),
+    Nodename = ?config(nodename, NodeConfig),
+    RaDir = filename:join(PrivDir, Nodename),
+    rabbit_ct_helpers:merge_app_env(NodeConfig,
+                                    {ra, [{data_dir, RaDir}]}).
 
 write_config_file(Config, NodeConfig, _I) ->
     %% Prepare a RabbitMQ configuration.
