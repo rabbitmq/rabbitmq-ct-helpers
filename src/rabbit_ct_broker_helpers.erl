@@ -529,7 +529,7 @@ init_config_filename(Config, NodeConfig, _I) ->
 init_ra_config(Config, NodeConfig, _I) ->
     PrivDir = ?config(priv_dir, Config),
     Nodename = ?config(nodename, NodeConfig),
-    RaDir = filename:join(PrivDir, Nodename),
+    RaDir = filename:join([PrivDir, Nodename, "quorum_queues"]),
     rabbit_ct_helpers:merge_app_env(NodeConfig,
                                     {ra, [{data_dir, RaDir}]}).
 
