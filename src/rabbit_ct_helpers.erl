@@ -89,7 +89,6 @@ run_setup_steps(Config, ExtraSteps) ->
     ],
     Steps = case erlang:function_exported(rebar3, main, 1) of
                 true ->
-                    io:format(user, "rebar3 = ok~n", []),
                     Steps0;
                 false ->
                     %% erlang.mk
