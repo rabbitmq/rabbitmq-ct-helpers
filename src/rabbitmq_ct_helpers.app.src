@@ -1,6 +1,6 @@
 {application, 'rabbitmq_ct_helpers', [
 	{description, "Common Test helpers for RabbitMQ"},
-	{vsn, "3.7.0.milestone18+70.gf52d349"},
+	{vsn, "3.8.0"},
 	{modules, ['inet_proxy_dist','inet_tcp_proxy','inet_tcp_proxy_manager','rabbit_control_helper','rabbit_ct_broker_helpers','rabbit_ct_config_schema','rabbit_ct_helpers','rabbit_ct_proper_helpers','rabbit_ct_vm_helpers','rabbit_mgmt_test_util']},
 	{registered, []},
 	{applications, [kernel,stdlib,rabbit_common,proper]},
