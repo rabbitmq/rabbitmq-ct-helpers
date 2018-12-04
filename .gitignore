@@ -15,3 +15,5 @@ terraform.tfstate*
 
 /rabbitmq_ct_helpers.d
 /.rabbitmq_ct_helpers.plt
+
+_build

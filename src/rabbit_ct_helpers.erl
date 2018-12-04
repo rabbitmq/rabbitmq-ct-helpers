@@ -69,15 +69,14 @@ log_environment() ->
 run_setup_steps(Config) ->
     run_setup_steps(Config, []).
 
+
 run_setup_steps(Config, ExtraSteps) ->
-    Steps = [
+    Steps0 = [
       fun init_skip_as_error_flag/1,
       fun guess_tested_erlang_app_name/1,
       fun ensure_secondary_umbrella/1,
       fun ensure_current_srcdir/1,
       fun ensure_rabbitmq_ct_helpers_srcdir/1,
-      fun ensure_erlang_mk_depsdir/1,
-      fun ensure_secondary_erlang_mk_depsdir/1,
       fun ensure_secondary_current_srcdir/1,
       fun ensure_rabbit_common_srcdir/1,
       fun ensure_rabbitmq_cli_srcdir/1,
@@ -88,6 +87,15 @@ run_setup_steps(Config, ExtraSteps) ->
       fun start_long_running_testsuite_monitor/1,
       fun load_elixir/1
     ],
+    Steps = case erlang:function_exported(rebar3, main, 1) of
+                true ->
+                    io:format(user, "rebar3 = ok~n", []),
+                    Steps0;
+                false ->
+                    %% erlang.mk
+                    Steps0 ++ [fun ensure_erlang_mk_depsdir/1,
+                               fun ensure_secondary_erlang_mk_depsdir/1]
+            end,
     run_steps(Config, Steps ++ ExtraSteps).
 
 run_teardown_steps(Config) ->
@@ -140,7 +148,7 @@ init_skip_as_error_flag(Config) ->
 guess_tested_erlang_app_name(Config) ->
     case os:getenv("DIALYZER_PLT") of
         false ->
-            ok;
+            Config;
         Filename ->
             AppName0 = filename:basename(Filename, ".plt"),
             AppName = string:strip(AppName0, left, $.),
