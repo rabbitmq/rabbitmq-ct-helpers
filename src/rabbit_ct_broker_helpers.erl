@@ -41,7 +41,6 @@
     control_action/2, control_action/3, control_action/4,
     rabbitmqctl/3, rabbitmqctl_list/3,
 
-    filter_out_erlang_code_path/1,
     add_code_path_to_node/2,
     add_code_path_to_all_nodes/2,
     rpc/5, rpc/6,
@@ -56,6 +55,11 @@
     stop_node_after/3,
     kill_node/2,
     kill_node_after/3,
+
+    is_feature_flag_supported/2,
+    is_feature_flag_supported/3,
+    enable_feature_flag/2,
+    enable_feature_flag/3,
 
     set_partition_handling_mode/3,
     set_partition_handling_mode_globally/2,
@@ -608,26 +612,40 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
             end,
             StartArgs0 ++ " -kernel net_ticktime " ++ integer_to_list(Ticktime)
     end,
-    Options = case UseSecondaryUmbrella of
-                  true ->
-                      DepsDir = ?config(erlang_mk_depsdir, Config),
-                      ErlLibs = os:getenv("ERL_LIBS"),
-                      SecDepsDir = ?config(secondary_erlang_mk_depsdir, Config),
-                      SecErlLibs = lists:flatten(
-                                     re:replace(ErlLibs,
-                                                DepsDir,
-                                                SecDepsDir,
-                                                [global, {return, list}])),
-                      [{env, [{"DEPS_DIR", SecDepsDir},
-                              {"REBAR_DEPS_DIR", SecDepsDir},
-                              {"ERL_LIBS", SecErlLibs},
-                              {"RABBITMQ_SERVER", ""},
-                              {"RABBITMQCTL", ""},
-                              {"RABBITMQ_PLUGINS", ""},
-                              {"RABBITMQ_SCRIPTS_DIR", ""}]}];
-                  false ->
-                      []
-              end,
+    ExtraArgs0 = [],
+    ExtraArgs1 = case rabbit_ct_helpers:get_config(Config, rmq_plugins_dir) of
+                     undefined -> ExtraArgs0;
+                     Dir       -> [{"RABBITMQ_PLUGINS_DIR=~s", [Dir]}
+                                   | ExtraArgs0]
+                 end,
+    StartWithPluginsDisabled = rabbit_ct_helpers:get_config(
+                                 Config, start_rmq_with_plugins_disabled),
+    ExtraArgs2 = case StartWithPluginsDisabled of
+                     true -> ["LEAVE_PLUGINS_DISABLED=yes" | ExtraArgs1];
+                     _    -> ExtraArgs1
+                 end,
+    ExtraArgs = case UseSecondaryUmbrella of
+                    true ->
+                        DepsDir = ?config(erlang_mk_depsdir, Config),
+                        ErlLibs = os:getenv("ERL_LIBS"),
+                        SecDepsDir = ?config(secondary_erlang_mk_depsdir, Config),
+                        SecErlLibs = lists:flatten(
+                                       re:replace(ErlLibs,
+                                                  DepsDir,
+                                                  SecDepsDir,
+                                                  [global, {return, list}])),
+                        SecScriptsDir = filename:join([SecDepsDir, "rabbit", "scripts"]),
+                        [{"DEPS_DIR=~s", [SecDepsDir]},
+                         {"REBAR_DEPS_DIR=~s", [SecDepsDir]},
+                         {"ERL_LIBS=~s", [SecErlLibs]},
+                         {"RABBITMQ_SCRIPTS_DIR=~s", [SecScriptsDir]},
+                         {"RABBITMQ_SERVER=~s/rabbitmq-server", [SecScriptsDir]},
+                         {"RABBITMQCTL=~s/rabbitmqctl", [SecScriptsDir]},
+                         {"RABBITMQ_PLUGINS=~s/rabbitmq-plugins", [SecScriptsDir]}
+                         | ExtraArgs2];
+                    false ->
+                        ExtraArgs2
+                end,
     Cmd = ["start-background-broker",
       {"RABBITMQ_NODENAME=~s", [Nodename]},
       {"RABBITMQ_NODENAME_FOR_PATHS=~s", [InitialNodename]},
@@ -635,8 +653,9 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
       {"RABBITMQ_CONFIG_FILE=~s", [ConfigFile]},
       {"RABBITMQ_SERVER_START_ARGS=~s", [StartArgs1]},
       "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=+S 2 +sbwt very_short +A 24",
-      {"TEST_TMPDIR=~s", [PrivDir]}],
-    case rabbit_ct_helpers:make(Config, SrcDir, Cmd, Options) of
+      {"TEST_TMPDIR=~s", [PrivDir]}
+      | ExtraArgs],
+    case rabbit_ct_helpers:make(Config, SrcDir, Cmd) of
         {ok, _} -> query_node(Config, NodeConfig);
         _       -> {skip, "Failed to initialize RabbitMQ"}
     end.
@@ -649,12 +668,28 @@ query_node(Config, NodeConfig) ->
       [rabbit, plugins_dir]),
     {ok, EnabledPluginsFile} = rpc(Config, Nodename, application, get_env,
       [rabbit, enabled_plugins_file]),
-    rabbit_ct_helpers:set_config(NodeConfig, [
-        {pid_file, PidFile},
-        {mnesia_dir, MnesiaDir},
-        {plugins_dir, PluginsDir},
-        {enabled_plugins_file, EnabledPluginsFile}
-      ]).
+    Vars0 = [{pid_file, PidFile},
+             {mnesia_dir, MnesiaDir},
+             {plugins_dir, PluginsDir},
+             {enabled_plugins_file, EnabledPluginsFile}],
+    Vars = try
+               EnabledFeatureFlagsFile = rpc(Config, Nodename,
+                                             rabbit_feature_flags,
+                                             enabled_feature_flags_list_file,
+                                             []),
+               ct:pal("RABBITMQ_FEATURE_FLAGS_FILE=~p~n", [EnabledFeatureFlagsFile]),
+               [{enabled_feature_flags_list_file, EnabledFeatureFlagsFile}
+                | Vars0]
+           catch
+               exit:{undef, [{rabbit_feature_flags, _, _, _} | _]} ->
+                   %% This happens if the queried node is a RabbitMQ
+                   %% 3.7.x node. If this is the case, we can ignore
+                   %% this and leave the `enabled_plugins_file` config
+                   %% variable unset.
+                   ct:pal("NO RABBITMQ_FEATURE_FLAGS_FILE"),
+                   Vars0
+           end,
+    rabbit_ct_helpers:set_config(NodeConfig, Vars).
 
 maybe_cluster_nodes(Config) ->
     Clustered0 = rabbit_ct_helpers:get_config(Config, rmq_nodes_clustered),
@@ -895,13 +930,22 @@ rabbitmqctl(Config, Node, Args) ->
     Rabbitmqctl = ?config(rabbitmqctl_cmd, Config),
     NodeConfig = get_node_config(Config, Node),
     Nodename = ?config(nodename, NodeConfig),
-    Env = [
+    Env0 = [
       {"RABBITMQ_PID_FILE", ?config(pid_file, NodeConfig)},
       {"RABBITMQ_MNESIA_DIR", ?config(mnesia_dir, NodeConfig)},
       {"RABBITMQ_PLUGINS_DIR", ?config(plugins_dir, NodeConfig)},
       {"RABBITMQ_ENABLED_PLUGINS_FILE",
         ?config(enabled_plugins_file, NodeConfig)}
     ],
+    Ret = rabbit_ct_helpers:get_config(
+            NodeConfig, enabled_feature_flags_list_file),
+    Env = case Ret of
+              undefined ->
+                  Env0;
+              EnabledFeatureFlagsFile ->
+                  Env0 ++
+                  [{"RABBITMQ_FEATURE_FLAGS_FILE", EnabledFeatureFlagsFile}]
+          end,
     Cmd = [Rabbitmqctl, "-n", Nodename | Args],
     rabbit_ct_helpers:exec(Cmd, [{env, Env}]).
 
@@ -1199,21 +1243,13 @@ clear_permissions(Config, Node, Username, VHost, ActingUser) ->
          rabbit_data_coercion:to_binary(VHost),
          ActingUser]).
 
-filter_out_erlang_code_path(CodePath) ->
-    ErlangRoot = code:root_dir(),
-    ErlangRootLen = string:len(ErlangRoot),
-    lists:filter(
-      fun(Dir) ->
-              Dir =/= "." andalso
-              string:substr(Dir, 1, ErlangRootLen) =/= ErlangRoot
-      end, CodePath).
-
 %% Functions to execute code on a remote node/broker.
 
 add_code_path_to_node(Node, Module) ->
     Path1 = filename:dirname(code:which(Module)),
     Path2 = filename:dirname(code:which(?MODULE)),
-    Paths = filter_out_erlang_code_path(lists:usort([Path1, Path2])),
+    Paths = filter_ct_helpers_and_testsuites_paths(
+              lists:usort([Path1, Path2])),
     case Paths of
         [] ->
             ok;
@@ -1238,6 +1274,23 @@ add_code_path_to_node(Node, Module) ->
                     ok
             end
     end.
+
+filter_ct_helpers_and_testsuites_paths(CodePath) ->
+    lists:filter(
+      fun(Dir) ->
+              DirName = filename:basename(Dir),
+              ParentDirName = filename:basename(
+                                filename:dirname(Dir)),
+              Dir =/= "." andalso
+              %% FIXME: This filtering is too naive. How to properly
+              %% distinguish RabbitMQ-related applications from
+              %% test-only modules?
+              ((ParentDirName =:= "rabbitmq_ct_helpers" andalso
+                DirName =:= "ebin") orelse
+               (ParentDirName =:= "rabbitmq_ct_client_helpers" andalso
+                DirName =:= "ebin") orelse
+               (DirName =:= "test"))
+      end, CodePath).
 
 add_code_path_to_all_nodes(Config, Module) ->
     Nodenames = get_node_configs(Config, nodename),
@@ -1346,6 +1399,32 @@ await_os_pid_death(Pid) ->
         true  -> timer:sleep(100),
                  await_os_pid_death(Pid);
         false -> ok
+    end.
+
+is_feature_flag_supported(Config, FeatureName) ->
+    Nodes = rabbit_ct_broker_helpers:get_node_configs(Config, nodename),
+    is_feature_flag_supported(Config, Nodes, FeatureName).
+
+is_feature_flag_supported(Config, [Node1 | _] = Nodes, FeatureName) ->
+    rabbit_ct_broker_helpers:rpc(
+      Config, Node1,
+      rabbit_feature_flags, is_supported_remotely,
+      [Nodes, [FeatureName], 60000]).
+
+enable_feature_flag(Config, FeatureName) ->
+    Nodes = rabbit_ct_broker_helpers:get_node_configs(Config, nodename),
+    enable_feature_flag(Config, Nodes, FeatureName).
+
+enable_feature_flag(Config, [Node1 | _] = Nodes, FeatureName) ->
+    case is_feature_flag_supported(Config, Nodes, FeatureName) of
+        true ->
+            rabbit_ct_broker_helpers:rpc(
+              Config, Node1, rabbit_feature_flags, enable, [FeatureName]);
+        false ->
+            {skip,
+             lists:flatten(
+               io_lib:format("'~s' feature flag is unsupported",
+                             [FeatureName]))}
     end.
 
 %% From a given list of gen_tcp client connections, return the list of
