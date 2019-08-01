@@ -966,6 +966,7 @@ rabbitmqctl(Config, Node, Args) ->
     NodeConfig = get_node_config(Config, Node),
     Nodename = ?config(nodename, NodeConfig),
     Env0 = [
+      {"RABBITMQ_SCRIPTS_DIR", filename:dirname(Rabbitmqctl)},
       {"RABBITMQ_PID_FILE", ?config(pid_file, NodeConfig)},
       {"RABBITMQ_MNESIA_DIR", ?config(mnesia_dir, NodeConfig)},
       {"RABBITMQ_PLUGINS_DIR", ?config(plugins_dir, NodeConfig)},
@@ -996,6 +997,7 @@ rabbitmq_queues(Config, Node, Args) ->
     NodeConfig = rabbit_ct_broker_helpers:get_node_config(Config, Node),
     Nodename = ?config(nodename, NodeConfig),
     Env0 = [
+      {"RABBITMQ_SCRIPTS_DIR", filename:dirname(RabbitmqQueues)},
       {"RABBITMQ_PID_FILE", ?config(pid_file, NodeConfig)},
       {"RABBITMQ_MNESIA_DIR", ?config(mnesia_dir, NodeConfig)},
       {"RABBITMQ_PLUGINS_DIR", ?config(plugins_dir, NodeConfig)},
@@ -1669,6 +1671,7 @@ plugin_action(Config, Node, Args) ->
     NodeConfig = get_node_config(Config, Node),
     Nodename = ?config(nodename, NodeConfig),
     Env = [
+      {"RABBITMQ_SCRIPTS_DIR", filename:dirname(Rabbitmqplugins)},
       {"RABBITMQ_PID_FILE", ?config(pid_file, NodeConfig)},
       {"RABBITMQ_MNESIA_DIR", ?config(mnesia_dir, NodeConfig)},
       {"RABBITMQ_PLUGINS_DIR", ?config(plugins_dir, NodeConfig)},
