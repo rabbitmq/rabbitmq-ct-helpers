@@ -275,7 +275,7 @@ assert_item(ExpI, [H | _] = ActI) when is_list(ActI) ->
     assert_item(ExpI, H),
     ok;
 assert_item(ExpI, ActI) ->
-    ExpI = maps:with(maps:keys(ExpI), ActI),
+    ?assertEqual(ExpI, maps:with(maps:keys(ExpI), ActI)),
     ok.
 
 assert_item_kv(Exp, Act) when is_list(Exp) ->
