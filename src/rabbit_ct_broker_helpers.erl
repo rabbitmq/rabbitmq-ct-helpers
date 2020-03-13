@@ -57,9 +57,6 @@
     kill_node/2,
     kill_node_after/3,
 
-    reset_node/2,
-    force_reset_node/2,
-
     cluster_members_online/2,
 
     is_feature_flag_supported/2,
