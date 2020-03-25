@@ -680,7 +680,7 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
                     false ->
                         ExtraArgs3
                 end,
-    Cmd = ["start-background-broker",
+    MakeVars = [
       {"RABBITMQ_NODENAME=~s", [Nodename]},
       {"RABBITMQ_NODENAME_FOR_PATHS=~s", [InitialNodename]},
       {"RABBITMQ_DIST_PORT=~b", [DistPort]},
@@ -691,9 +691,14 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
       "RMQCTL_WAIT_TIMEOUT=180",
       {"TEST_TMPDIR=~s", [PrivDir]}
       | ExtraArgs],
+    Cmd = ["start-background-broker" | MakeVars],
     case rabbit_ct_helpers:make(Config, SrcDir, Cmd) of
-        {ok, _} -> query_node(Config, NodeConfig);
-        _       -> {skip, "Failed to initialize RabbitMQ"}
+        {ok, _} ->
+            query_node(Config, NodeConfig);
+        _ ->
+            AbortCmd = ["stop-node" | MakeVars],
+            _ = rabbit_ct_helpers:make(Config, SrcDir, AbortCmd),
+            {skip, "Failed to initialize RabbitMQ"}
     end.
 
 query_node(Config, NodeConfig) ->
