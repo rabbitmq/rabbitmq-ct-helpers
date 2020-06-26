@@ -670,7 +670,7 @@ exec(Cmd) ->
     exec(Cmd, []).
 
 exec([Cmd | Args], Options) when is_list(Cmd) orelse is_binary(Cmd) ->
-    Cmd1 = case (lists:member($/, Cmd) orelse lists:member($\\, Cmd)) of
+    Cmd0 = case (lists:member($/, Cmd) orelse lists:member($\\, Cmd)) of
         true ->
             Cmd;
         false ->
