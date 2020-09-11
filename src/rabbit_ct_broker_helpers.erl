@@ -78,6 +78,9 @@
 
     set_policy/6,
     set_policy/7,
+    set_policy_in_vhost/7,
+    set_policy_in_vhost/8,
+
     clear_policy/3,
     clear_policy/4,
     set_operator_policy/6,
@@ -1604,8 +1607,15 @@ set_policy(Config, Node, Name, Pattern, ApplyTo, Definition) ->
     set_policy(Config, Node, Name, Pattern, ApplyTo, Definition, <<"acting-user">>).
 
 set_policy(Config, Node, Name, Pattern, ApplyTo, Definition, Username) ->
+    set_policy_in_vhost(Config, Node, <<"/">>, Name, Pattern, ApplyTo, Definition, Username).
+
+set_policy_in_vhost(Config, Node, VirtualHost, Name, Pattern, ApplyTo, Definition) ->
     ok = rpc(Config, Node,
-             rabbit_policy, set, [<<"/">>, Name, Pattern, Definition, 0, ApplyTo,
+             rabbit_policy, set, [VirtualHost, Name, Pattern, Definition, 0, ApplyTo,
+                                  <<"acting-user">>]).
+set_policy_in_vhost(Config, Node, VirtualHost, Name, Pattern, ApplyTo, Definition, Username) ->
+    ok = rpc(Config, Node,
+             rabbit_policy, set, [VirtualHost, Name, Pattern, Definition, 0, ApplyTo,
                                   Username]).
 
 clear_policy(Config, Node, Name) ->
