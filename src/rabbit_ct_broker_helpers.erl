@@ -1439,9 +1439,6 @@ add_code_path_to_node(Node, Module) ->
         _ ->
             case rpc:call(Node, code, get_path, []) of
                 ExistingPaths when is_list(ExistingPaths) ->
-                    ct:pal(?LOW_IMPORTANCE,
-                           "Attempting to add ~p to the code paths ~p on node ~s~n",
-                           [Paths, ExistingPaths, Node]),
                     lists:foreach(
                       fun(P) ->
                               case lists:member(P, ExistingPaths) of
