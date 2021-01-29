@@ -117,8 +117,14 @@ run_steps(Config, [Step | Rest]) ->
         {skip, _} = Error ->
             run_teardown_steps(Config),
             Error;
-        Config1 ->
-            run_steps(Config1, Rest)
+        Config1 when is_list(Config1) ->
+            run_steps(Config1, Rest);
+        Other ->
+            ct:pal(?LOW_IMPORTANCE,
+                "~p:~p/~p failed with ~p steps remaining (Config value ~p is not a proplist)",
+                [?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, length(Rest), Other]),
+            run_teardown_steps(Config),
+            exit("A setup step returned a non-proplist")
     end;
 run_steps(Config, []) ->
     Config.
@@ -137,7 +143,8 @@ init_skip_as_error_flag(Config) ->
 guess_tested_erlang_app_name(Config) ->
     case os:getenv("DIALYZER_PLT") of
         false ->
-            ok;
+            {skip,
+             "plt file required, please set DIALYZER_PLT"};
         Filename ->
             AppName0 = filename:basename(Filename, ".plt"),
             AppName = string:strip(AppName0, left, $.),
