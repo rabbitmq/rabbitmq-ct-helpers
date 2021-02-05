@@ -67,24 +67,36 @@ run_setup_steps(Config) ->
     run_setup_steps(Config, []).
 
 run_setup_steps(Config, ExtraSteps) ->
-    Steps = [
-      fun init_skip_as_error_flag/1,
-      fun guess_tested_erlang_app_name/1,
-      fun ensure_secondary_umbrella/1,
-      fun ensure_current_srcdir/1,
-      fun ensure_rabbitmq_ct_helpers_srcdir/1,
-      fun ensure_erlang_mk_depsdir/1,
-      fun ensure_secondary_erlang_mk_depsdir/1,
-      fun ensure_secondary_current_srcdir/1,
-      fun ensure_rabbit_common_srcdir/1,
-      fun ensure_rabbitmq_cli_srcdir/1,
-      fun ensure_rabbit_srcdir/1,
-      fun ensure_make_cmd/1,
-      fun ensure_erl_call_cmd/1,
-      fun ensure_ssl_certs/1,
-      fun start_long_running_testsuite_monitor/1,
-      fun load_elixir/1
-    ],
+    Steps = case os:getenv("RABBITMQ_RUN") of
+        false ->
+            [
+                fun init_skip_as_error_flag/1,
+                fun guess_tested_erlang_app_name/1,
+                fun ensure_secondary_umbrella/1,
+                fun ensure_current_srcdir/1,
+                fun ensure_rabbitmq_ct_helpers_srcdir/1,
+                fun ensure_erlang_mk_depsdir/1,
+                fun ensure_secondary_erlang_mk_depsdir/1,
+                fun ensure_secondary_current_srcdir/1,
+                fun ensure_rabbit_common_srcdir/1,
+                fun ensure_rabbitmq_cli_srcdir/1,
+                fun ensure_rabbit_srcdir/1,
+                fun ensure_make_cmd/1,
+                fun ensure_erl_call_cmd/1,
+                fun ensure_ssl_certs/1,
+                fun start_long_running_testsuite_monitor/1,
+                fun load_elixir/1
+            ];
+        _ ->
+            [
+                fun init_skip_as_error_flag/1,
+                % fun guess_tested_erlang_app_name/1,
+                % fun ensure_rabbitmq_ct_helpers_srcdir/1,
+                fun ensure_fake_make_cmd/1,
+                % fun ensure_ssl_certs/1,
+                fun start_long_running_testsuite_monitor/1
+            ]
+    end,
     run_steps(Config, Steps ++ ExtraSteps).
 
 run_teardown_steps(Config) ->
@@ -333,6 +345,14 @@ ensure_make_cmd(Config) ->
         _       -> {skip,
                     "GNU Make required, " ++
                     "please set MAKE or 'make_cmd' in ct config"}
+    end.
+
+ensure_fake_make_cmd(Config) ->
+    case os:getenv("RABBITMQ_RUN") of
+        false ->
+            {skip, "Bazel build env required"};
+        P ->
+            set_config(Config, {make_cmd, P})
     end.
 
 ensure_erl_call_cmd(Config) ->

@@ -198,15 +198,25 @@
 %% -------------------------------------------------------------------
 
 setup_steps() ->
-    [
-      fun run_make_dist/1,
-      fun rabbit_ct_helpers:ensure_rabbitmqctl_cmd/1,
-      fun rabbit_ct_helpers:ensure_rabbitmqctl_app/1,
-      fun rabbit_ct_helpers:ensure_rabbitmq_plugins_cmd/1,
-      fun set_lager_flood_limit/1,
-      fun start_rabbitmq_nodes/1,
-      fun share_dist_and_proxy_ports_map/1
-    ].
+    case os:getenv("RABBITMQ_RUN") of
+        false ->
+            [
+                fun run_make_dist/1,
+                fun rabbit_ct_helpers:ensure_rabbitmqctl_cmd/1,
+                fun rabbit_ct_helpers:ensure_rabbitmqctl_app/1,
+                fun rabbit_ct_helpers:ensure_rabbitmq_plugins_cmd/1,
+                fun set_lager_flood_limit/1,
+                fun start_rabbitmq_nodes/1,
+                fun share_dist_and_proxy_ports_map/1
+            ];
+        _ ->
+            [
+                fun rabbit_ct_helpers:ensure_rabbitmqctl_cmd/1,
+                fun set_lager_flood_limit/1,
+                fun start_rabbitmq_nodes/1,
+                fun share_dist_and_proxy_ports_map/1
+            ]
+    end.
 
 teardown_steps() ->
     [
