@@ -727,17 +727,33 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
       {"TEST_TMPDIR=~s", [PrivDir]}
       | ExtraArgs],
     Cmd = ["start-background-broker" | MakeVars],
-    case rabbit_ct_helpers:make(Config, SrcDir, Cmd) of
-        {ok, _} ->
-            NodeConfig1 = rabbit_ct_helpers:set_config(
-                            NodeConfig,
-                            [{effective_srcdir, SrcDir},
-                             {make_vars_for_node_startup, MakeVars}]),
-            query_node(Config, NodeConfig1);
-        _ ->
-            AbortCmd = ["stop-node" | MakeVars],
-            _ = rabbit_ct_helpers:make(Config, SrcDir, AbortCmd),
-            {skip, "Failed to initialize RabbitMQ"}
+    case rabbit_ct_helpers:get_config(Config, rabbitmq_run_cmd) of
+        undefined ->
+            case rabbit_ct_helpers:make(Config, SrcDir, Cmd) of
+                {ok, _} ->
+                    NodeConfig1 = rabbit_ct_helpers:set_config(
+                                    NodeConfig,
+                                    [{effective_srcdir, SrcDir},
+                                    {make_vars_for_node_startup, MakeVars}]),
+                    query_node(Config, NodeConfig1);
+                _ ->
+                    AbortCmd = ["stop-node" | MakeVars],
+                    _ = rabbit_ct_helpers:make(Config, SrcDir, AbortCmd),
+                    {skip, "Failed to initialize RabbitMQ"}
+            end;
+        RunCmd ->
+            case rabbit_ct_helpers:exec([RunCmd | Cmd]) of
+                {ok, _} ->
+                    NodeConfig1 = rabbit_ct_helpers:set_config(
+                                    NodeConfig,
+                                    [{effective_srcdir, SrcDir},
+                                    {make_vars_for_node_startup, MakeVars}]),
+                    query_node(Config, NodeConfig1);
+                _ ->
+                    AbortCmd = ["stop-node" | MakeVars],
+                    _ = rabbit_ct_helpers:exec([RunCmd | AbortCmd]),
+                    {skip, "Failed to initialize RabbitMQ"}
+            end
     end.
 
 query_node(Config, NodeConfig) ->

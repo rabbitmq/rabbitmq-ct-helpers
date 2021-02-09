@@ -91,9 +91,10 @@ run_setup_steps(Config, ExtraSteps) ->
             [
                 fun init_skip_as_error_flag/1,
                 % fun guess_tested_erlang_app_name/1,
-                % fun ensure_rabbitmq_ct_helpers_srcdir/1,
-                fun ensure_fake_make_cmd/1,
-                % fun ensure_ssl_certs/1,
+                fun ensure_rabbitmq_ct_helpers_srcdir/1,
+                fun ensure_make_cmd/1,
+                fun ensure_rabbitmq_run_cmd/1,
+                fun ensure_ssl_certs/1,
                 fun start_long_running_testsuite_monitor/1
             ]
     end,
@@ -347,12 +348,14 @@ ensure_make_cmd(Config) ->
                     "please set MAKE or 'make_cmd' in ct config"}
     end.
 
-ensure_fake_make_cmd(Config) ->
+ensure_rabbitmq_run_cmd(Config) ->
     case os:getenv("RABBITMQ_RUN") of
         false ->
-            {skip, "Bazel build env required"};
+            {skip,
+             "Bazel helper rabbitmq-run required, " ++
+             "please set RABBITMQ_RUN"};
         P ->
-            set_config(Config, {make_cmd, P})
+            set_config(Config, {rabbitmq_run_cmd, P})
     end.
 
 ensure_erl_call_cmd(Config) ->

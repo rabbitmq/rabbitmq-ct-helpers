@@ -52,9 +52,7 @@ github_bazel_erlang_lib(
     version = "1.7.1",
     tag = "1.7.1",
     sha256 = "5607ea3b61fe8e715a1e711c5ce9000c8f16d4c2401c11318b76f65d11bf22d4",
-    deps = [
-        "@lager//:bazel_erlang_lib",
-    ],
+    build_file = "@rabbitmq-server//:BUILD.ranch",
 )
 
 github_bazel_erlang_lib(
