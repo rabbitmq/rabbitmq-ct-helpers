@@ -91,6 +91,7 @@ run_setup_steps(Config, ExtraSteps) ->
             [
                 fun init_skip_as_error_flag/1,
                 % fun guess_tested_erlang_app_name/1,
+                fun ensure_secondary_umbrella/1,
                 fun ensure_rabbitmq_ct_helpers_srcdir/1,
                 fun ensure_make_cmd/1,
                 fun ensure_rabbitmq_run_cmd/1,
