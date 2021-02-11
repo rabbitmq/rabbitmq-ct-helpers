@@ -1,15 +1,15 @@
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-git_repository(
+http_archive(
     name = "bazel-erlang",
-    branch = "master",
-    remote = "https://github.com/rabbitmq/bazel-erlang.git",
+    urls = ["https://github.com/rabbitmq/bazel-erlang/archive/master.zip"],
+    strip_prefix = "bazel-erlang-master",
 )
 
-git_repository(
+http_archive(
     name = "rabbitmq-server",
-    branch = "bazel",
-    remote = "https://github.com/rabbitmq/rabbitmq-server.git",
+    urls = ["https://github.com/rabbitmq/rabbitmq-server/archive/bazel-v2.zip"],
+    strip_prefix = "rabbitmq-server-bazel-v2"
 )
 
 load("@rabbitmq-server//:workspace_helpers.bzl", "github_bazel_erlang_lib")
