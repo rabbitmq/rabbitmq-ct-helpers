@@ -21,6 +21,7 @@
     ensure_application_srcdir/4,
     ensure_rabbitmqctl_cmd/1,
     ensure_rabbitmqctl_app/1,
+    load_rabbitmqctl_app/1,
     ensure_rabbitmq_plugins_cmd/1,
     ensure_rabbitmq_queues_cmd/1,
     start_long_running_testsuite_monitor/1,
@@ -448,6 +449,17 @@ ensure_rabbitmqctl_app(Config) ->
         false ->
             {skip, "Access to rabbitmq_cli ebin dir. required, " ++
              "please build rabbitmq_cli and set MIX_ENV"}
+    end.
+
+load_rabbitmqctl_app(Config) ->
+    case application:load(rabbitmqctl) of
+        ok ->
+            Config;
+        {error, {already_loaded, rabbitmqctl}} ->
+            Config;
+        {error, _} ->
+            {skip, "Application rabbitmqctl could not be loaded, " ++
+                "please place compiled rabbitmq_cli on the code path"}
     end.
 
 ensure_rabbitmq_plugins_cmd(Config) ->
