@@ -743,7 +743,7 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
                     {skip, "Failed to initialize RabbitMQ"}
             end;
         RunCmd ->
-            case rabbit_ct_helpers:exec([RunCmd | Cmd]) of
+            case rabbit_ct_helpers:exec([RunCmd, "-C", SrcDir] ++ Cmd) of
                 {ok, _} ->
                     NodeConfig1 = rabbit_ct_helpers:set_config(
                                     NodeConfig,
