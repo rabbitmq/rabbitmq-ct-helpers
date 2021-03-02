@@ -1513,11 +1513,9 @@ filter_ct_helpers_and_testsuites_paths(CodePath) ->
               %% FIXME: This filtering is too naive. How to properly
               %% distinguish RabbitMQ-related applications from
               %% test-only modules?
-              (((ParentDirName =:= "rabbitmq_ct_helpers" orelse
-                 ParentDirName =:= "rabbitmq-ct-helpers") andalso
+              ((ParentDirName =:= "rabbitmq_ct_helpers" andalso
                 DirName =:= "ebin") orelse
-               ((ParentDirName =:= "rabbitmq_ct_client_helpers" orelse
-                 ParentDirName =:= "rabbitmq-ct-client-helpers") andalso
+               (ParentDirName =:= "rabbitmq_ct_client_helpers" andalso
                 DirName =:= "ebin") orelse
                (DirName =:= "test"))
       end, CodePath).
