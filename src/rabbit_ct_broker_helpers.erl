@@ -658,13 +658,7 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
                      undefined ->
                          ExtraArgs0;
                      ExtraPluginsDir ->
-                         PathSep = case os:type() of
-                                       {win32, _} -> ";";
-                                       _          -> ":"
-                                   end,
-                         RegularPluginsDir = filename:join(SrcDir, "plugins"),
-                         [{"RABBITMQ_PLUGINS_DIR=~s~s~s",
-                           [RegularPluginsDir, PathSep, ExtraPluginsDir]}
+                         [{"EXTRA_PLUGINS_DIR=~s", [ExtraPluginsDir]}
                           | ExtraArgs0]
                  end,
     StartWithPluginsDisabled = rabbit_ct_helpers:get_config(
