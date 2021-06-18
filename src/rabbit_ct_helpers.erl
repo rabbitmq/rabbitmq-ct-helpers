@@ -45,7 +45,6 @@
     convert_to_unicode_binary/1,
     cover_work_factor/2,
 
-    is_mixed_versions/0,
     is_mixed_versions/1,
 
     await_condition/1,
@@ -103,6 +102,7 @@ run_setup_steps(Config, ExtraSteps) ->
                 fun maybe_rabbit_srcdir/1,
                 fun ensure_make_cmd/1,
                 fun ensure_rabbitmq_run_cmd/1,
+                fun ensure_rabbitmq_run_secondary_cmd/1,
                 fun ensure_ssl_certs/1,
                 fun start_long_running_testsuite_monitor/1
             ]
@@ -367,13 +367,21 @@ ensure_make_cmd(Config) ->
     end.
 
 ensure_rabbitmq_run_cmd(Config) ->
-    case os:getenv("RABBITMQ_RUN") of
+    Path = os:getenv("RABBITMQ_RUN"),
+    case filelib:is_file(Path) of
+        true  -> set_config(Config, {rabbitmq_run_cmd, Path});
+        false -> {skip,
+                  "Bazel helper rabbitmq-run required, " ++
+                  "please set RABBITMQ_RUN"}
+    end.
+
+ensure_rabbitmq_run_secondary_cmd(Config) ->
+    Path = os:getenv("RABBITMQ_RUN_SECONDARY"),
+    case filelib:is_file(Path) of
+        true  ->
+            set_config(Config, {rabbitmq_run_secondary_cmd, Path});
         false ->
-            {skip,
-             "Bazel helper rabbitmq-run required, " ++
-             "please set RABBITMQ_RUN"};
-        P ->
-            set_config(Config, {rabbitmq_run_cmd, P})
+            Config
     end.
 
 ensure_erl_call_cmd(Config) ->
@@ -1025,12 +1033,9 @@ convert_to_unicode_binary(Arg) when is_list(Arg) ->
 convert_to_unicode_binary(Arg) when is_binary(Arg) ->
     Arg.
 
-is_mixed_versions() ->
-    os:getenv("SECONDARY_UMBRELLA") =/= false
-        orelse os:getenv("RABBITMQ_RUN_SECONDARY") =/= false.
-
 is_mixed_versions(Config) ->
-    get_config(Config, secondary_umbrella, false) =/= false.
+    get_config(Config, secondary_umbrella, false) =/= false
+        orelse get_config(Config, rabbitmq_run_secondary_cmd, false) =/= false.
 
 %% -------------------------------------------------------------------
 %% Assertions that retry
