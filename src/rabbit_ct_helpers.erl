@@ -43,6 +43,8 @@
     convert_to_unicode_binary/1,
     cover_work_factor/2,
 
+    is_mixed_versions/1,
+
     await_condition/1,
     await_condition/2,
     await_condition_with_retries/2
@@ -983,6 +985,9 @@ convert_to_unicode_binary(Arg) when is_list(Arg) ->
     unicode:characters_to_binary(Arg);
 convert_to_unicode_binary(Arg) when is_binary(Arg) ->
     Arg.
+
+is_mixed_versions(Config) ->
+    get_config(Config, secondary_umbrella, false) =/= false.
 
 %% -------------------------------------------------------------------
 %% Assertions that retry
