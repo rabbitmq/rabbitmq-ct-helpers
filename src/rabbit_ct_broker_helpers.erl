@@ -745,12 +745,15 @@ do_start_rabbitmq_node(Config, NodeConfig, I) ->
                     {skip, "Failed to initialize RabbitMQ"}
             end;
         RunCmd ->
-            EnabledPluginsMakeVars = case {CanUseSecondary, WithPlugins} of
-                {true, true} ->
-                    [{"RABBITMQ_ENABLED_PLUGINS=~s", [filename:basename(SrcDir)]}];
-                {true, _} ->
+            UseSecondary = CanUseSecondary andalso
+                rabbit_ct_helpers:get_config(Config, rabbitmq_run_secondary_cmd) =/= undefined,
+            EnabledPluginsMakeVars = case {UseSecondary, WithPlugins} of
+                {_, false} ->
                     ["RABBITMQ_ENABLED_PLUGINS=rabbit"];
-                _ -> []
+                {true, _} ->
+                    [{"RABBITMQ_ENABLED_PLUGINS=~s", [filename:basename(SrcDir)]}];
+                _ ->
+                    []
             end,
             RmqRun = case CanUseSecondary of
                 false -> RunCmd;
